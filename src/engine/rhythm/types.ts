@@ -4,7 +4,10 @@ import type { VentricularPattern } from '../electrical/activation';
 export type AtrialOrigin =
   | { kind: 'sinus' }
   | { kind: 'ectopic'; axisDeg: number; horizontalDeg?: number; id: string }
-  | { kind: 'retrograde' };
+  | { kind: 'retrograde' }
+  /** Flutter / fibrillation impulses: no discrete P wave (continuous atrial activity instead). */
+  | { kind: 'flutter' }
+  | { kind: 'fibrillation' };
 
 export interface AtrialEvent {
   t: number; // onset of atrial depolarisation (ms)

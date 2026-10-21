@@ -470,6 +470,7 @@ export function synthesize(R: ResolvedEcg, rhythm: RhythmOutput, opts: SynthOpti
   const pWaves: EcgOutput['pWaves'] = [];
   for (const ev of rhythm.atrial) {
     if (R.mods.atrialStandstill) break;
+    if (ev.origin.kind === 'flutter' || ev.origin.kind === 'fibrillation') continue;
     const key = JSON.stringify(ev.origin);
     let tpl = aCache.get(key);
     if (!tpl) { tpl = atrialTemplate(R, ev.origin, calcLeads, opts.electrodes); aCache.set(key, tpl); }
