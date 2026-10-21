@@ -7,12 +7,13 @@ import { useApp } from '../../store/app';
 import { LevelBadge, Pearls, Reveal, Slider, Tabs, Toggle } from '../common/controls';
 import { Jvp, Monitor, PaCatheter, PulseContour, PvLoop, StarlingGuyton, Wiggers } from './HemoCharts';
 import { lastFullBeat, useHemoSim } from './useHemoSim';
+import Auscultation from './Auscultation';
 
 const GROUP_LABEL: Record<HemoPreset['group'], string> = {
   normal: 'Normal', failure: 'Heart failure & RV', valve: 'Valve disease', shunt: 'Shunts', pericardial: 'Pericardial disease',
   shock: 'Shock', cardiomyopathy: 'Cardiomyopathy', other: 'Rhythm & other',
 };
-type View = 'wiggers' | 'pv' | 'curves' | 'bedside';
+type View = 'wiggers' | 'pv' | 'curves' | 'bedside' | 'sounds';
 
 export default function HemoLab() {
   const { presetId, level, openPreset } = useApp();
@@ -132,7 +133,7 @@ export default function HemoLab() {
           <div className="panel">
             <div className="panel-title">
               <Tabs<View> label="Hemodynamic views" value={view} onChange={setView} tabs={[
-                { id: 'wiggers', label: 'Wiggers diagram' }, { id: 'pv', label: 'PV loop' }, { id: 'curves', label: 'Starling & Guyton' }, { id: 'bedside', label: 'Bedside: monitor, JVP, pulse, PA catheter' },
+                { id: 'wiggers', label: 'Wiggers diagram' }, { id: 'pv', label: 'PV loop' }, { id: 'curves', label: 'Starling & Guyton' }, { id: 'bedside', label: 'Bedside: monitor, JVP, pulse, PA catheter' }, { id: 'sounds', label: 'Auscultation' },
               ]} />
               <span className="spacer" />
               {(view === 'wiggers' || view === 'pv') && <Toggle label={right ? 'Right heart' : 'Left heart'} value={right} onChange={setRight} title="Switch between left and right heart" />}
@@ -140,6 +141,7 @@ export default function HemoLab() {
             {view === 'wiggers' && <Wiggers view={sim} params={params} right={right} />}
             {view === 'pv' && <PvLoop view={sim} params={params} right={right} />}
             {view === 'curves' && <StarlingGuyton view={sim} params={params} />}
+            {view === 'sounds' && <Auscultation view={sim} params={params} />}
             {view === 'bedside' && (
               <div className="grid cols-2">
                 <div><Monitor view={sim} /></div>
