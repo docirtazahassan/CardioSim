@@ -1,0 +1,13 @@
+import { DEFAULT_HEMO } from '../src/engine/hemo/params';
+import { steadyState } from '../src/engine/hemo/simulator';
+const t0 = Date.now();
+const over = process.argv[2] ? JSON.parse(process.argv[2]) : {};
+const { summary: s, sim } = steadyState({ ...DEFAULT_HEMO, ...over }, 30);
+const f = (x: number) => x.toFixed(1);
+console.log(`time ${Date.now()-t0}ms beats ${sim.beats.length} vol ${sim.circ.volume().toFixed(0)}`);
+console.log(`HR ${f(s.hr)} SV ${f(s.sv)} EDV ${f(s.edv)} ESV ${f(s.esv)} EF ${f(s.ef*100)} CO ${f(s.co)} Qp/Qs ${s.qpqs.toFixed(2)}`);
+console.log(`BP ${f(s.sbp)}/${f(s.dbp)} MAP ${f(s.map)} LV ${f(s.lvSys)}/${f(s.lvEdp)} RV ${f(s.rvSys)}/${f(s.rvEdp)} PA ${f(s.paSys)}/${f(s.paDia)} m${f(s.paMean)} PCWP ${f(s.pcwp)} LA v${f(s.laV)} a${f(s.laA)} CVP ${f(s.cvp)} RA a${f(s.raA)} v${f(s.raV)}`);
+console.log(`SVR ${f(s.svr)} PVR ${f(s.pvr)} SvO2 ${f(s.svo2*100)} AVgrad ${f(s.avGradPeak)}/${f(s.avGradMean)} MVgrad ${f(s.mvGradMean)} LVOT ${f(s.lvotPeak)} AR ${f(s.arFraction*100)}% MR ${f(s.mrFraction*100)}% dPdt ${f(s.dpdtMax)} upstroke ${f(s.upstrokeMs)} IVC dV ${f(s.ivcVolumeChange)} IVR dV ${f(s.ivrVolumeChange)} Peri ${f(s.pPeriMean)}`);
+console.log('sounds', JSON.stringify(s.sounds));
+console.log('murmurs', Object.entries(s.murmurs).map(([k,v])=>k+':'+v.toFixed(2)).join(' '));
+console.log('baro', JSON.stringify(sim.baro, (k,v)=> typeof v==='number'? +v.toFixed(2): v));
