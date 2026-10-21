@@ -43,14 +43,47 @@ export function interpret(m: BeatMeasure, ecg: EcgOutput, hr: number): Finding[]
     because: vRate > 100 ? 'Faster impulse formation (↑ sympathetic tone steepens phase 4) or a re-entrant/ectopic rhythm.' : vRate < 60 ? 'Slower impulse formation (↑ vagal tone, drugs) or AV block with a slower escape pacemaker.' : 'SA node firing at its normal intrinsic rate under balanced autonomic tone.',
   });
   const noP = ecg.pWaves.length === 0;
+  const isConducted = (src: string) => src === 'conducted' || src === 'preexcited' || src === 'fusion';
+  const ectopicV = r.ventricular.filter((v) => !isConducted(v.source));
+  const allConducted = ectopicV.length === 0;
+  const atrialRate = (() => {
+    const s = r.atrial.filter((x) => x.origin.kind === 'sinus');
+    return s.length > 1 ? (60000 * (s.length - 1)) / (s[s.length - 1].t - s[0].t) : 0;
+  })();
+  const explained = (t: number) => ectopicV.some((v) => t > v.t - 120 && t < v.t + 450);
+  const chaotic = r.continuous.some((c) => c.kind === 'vf' || c.kind === 'torsades');
+  const dropped = chaotic ? [] : r.atrial.filter((a) => !a.conducted && a.origin.kind === 'sinus' && a.t < ecg.duration - 600 && !explained(a.t));
+  const late = rrs.slice(Math.floor(rrs.length / 2));
+  const lateMean = late.length ? late.reduce((a, b) => a + b, 0) / late.length : 0;
+  const lateCv = late.length > 2 ? Math.sqrt(late.reduce((a, b) => a + (b - lateMean) ** 2, 0) / late.length) / lateMean : 1;
+  const retroP = r.atrial.some((x) => x.origin.kind === 'retrograde');
+  const ectopicA = new Set(r.atrial.filter((x) => x.origin.kind === 'ectopic').map((x) => (x.origin as { id: string }).id));
   if (r.continuous.some((c) => c.kind === 'fibrillation')) f.push({ id: 'af', category: 'rhythm', label: 'Irregularly irregular rhythm without P waves', detail: 'Atrial fibrillation', because: 'Chaotic atrial re-entry bombards the AV node; its refractoriness and concealed conduction let impulses through at random.' });
   else if (r.continuous.some((c) => c.kind === 'flutter')) f.push({ id: 'flutter', category: 'rhythm', label: 'Sawtooth flutter waves', detail: 'Atrial flutter', because: 'A macro-re-entrant circuit around the tricuspid annulus activates the atria ~300/min; the AV node conducts every 2nd–4th wave.' });
   else if (r.continuous.some((c) => c.kind === 'vf')) f.push({ id: 'vf', category: 'rhythm', label: 'Chaotic ventricular activity', detail: 'Ventricular fibrillation', because: 'Multiple wandering re-entrant wavelets – no coordinated depolarisation, no output.' });
   else if (r.continuous.some((c) => c.kind === 'torsades')) f.push({ id: 'tdp', category: 'rhythm', label: 'Polymorphic VT twisting around the baseline', detail: 'Torsades de pointes', because: 'Long repolarisation allows early afterdepolarisations that trigger rotating re-entry.' });
   else if (noP && ecg.beats.length) f.push({ id: 'nop', category: 'rhythm', label: 'No P waves visible', detail: 'Junctional/ventricular rhythm or atrial standstill', because: 'Atria are not depolarised before the ventricles (subsidiary pacemaker, or atrial myocytes inexcitable, e.g. hyperkalemia).' });
-  else if (cv < 0.08) f.push({ id: 'regular', category: 'rhythm', label: 'Regular rhythm with P before each QRS', detail: 'Sinus rhythm', because: 'SA node impulses conduct through the AV node to the ventricles one-to-one.' });
-  if (r.atrial.some((a) => !a.conducted && a.origin.kind === 'sinus' && a.t < ecg.duration - 600)) {
-    f.push({ id: 'avblock', category: 'conduction', label: 'Some P waves are not followed by QRS', detail: 'Second- or third-degree AV block', because: 'Impulses fail in the AV node (decremental – Mobitz I) or in the His–Purkinje system (all-or-none – Mobitz II / complete).' });
+  else if (lateMean && 60000 / lateMean > 140 && lateCv < 0.04 && (allConducted || retroP)) f.push({ id: 'svt', category: 'rhythm', label: 'Regular tachycardia starting abruptly', detail: retroP ? 'Re-entrant SVT – P waves hidden in or just after the QRS (retrograde)' : 'Re-entrant or ectopic tachycardia', because: 'A premature beat finds one limb of a circuit refractory and the other recovered, so the impulse circles repeatedly (re-entry).' });
+  else if (allConducted && ectopicA.size >= 3) f.push({ id: 'mat', category: 'rhythm', label: 'Irregular rhythm with ≥ 3 different P-wave shapes', detail: 'Multifocal atrial rhythm/tachycardia', because: 'Several atrial foci fire in turn; each produces its own P axis and PR interval.' });
+  else if (allConducted && ectopicA.size > 0 && cv >= 0.05) f.push({ id: 'pac', category: 'rhythm', label: 'Premature beats preceded by an abnormal P wave', detail: 'Premature atrial complexes', because: 'An atrial focus fires early; it conducts normally (narrow QRS) and usually resets the sinus node (non-compensatory pause).' });
+  else if (allConducted && cv < 0.08) f.push({ id: 'regular', category: 'rhythm', label: 'Regular rhythm with P before each QRS', detail: 'Sinus rhythm', because: 'SA node impulses conduct through the AV node to the ventricles one-to-one.' });
+  else if (allConducted && !dropped.length) f.push({ id: 'sinus-irregular', category: 'rhythm', label: 'Irregular rhythm, every QRS preceded by a normal P', detail: 'Sinus arrhythmia / sinus pauses', because: 'The sinus rate itself varies (e.g. with breathing, or failing sinus node automaticity).' });
+  else if (ectopicV.length <= ecg.beats.length * 0.6) {
+    const big = ectopicV.length >= ecg.beats.length * 0.4;
+    if (ectopicV.every((v) => v.source === 'escape' || v.source === 'junctional')) {
+      if (!dropped.length) f.push({ id: 'escape', category: 'rhythm', label: 'Pauses ended by escape beats', detail: 'Sinus pauses with junctional/ventricular escape', because: 'When the sinus node fails, a slower subsidiary pacemaker takes over after its own escape interval.' });
+    } else f.push({ id: 'ectopy', category: 'rhythm', label: big ? 'Every other beat is premature and wide' : 'Underlying rhythm interrupted by premature beats', detail: big ? 'Bigeminy' : 'Ectopic beats', because: 'An ectopic focus fires before the next sinus impulse is due.' });
+  } else {
+    const src = ectopicV[Math.floor(ectopicV.length / 2)].source;
+    const label = src === 'junctional' ? 'Junctional (narrow) escape/ectopic rhythm' : src === 'escape' ? 'Ventricular escape rhythm' : 'Ventricular rhythm';
+    f.push({ id: 'subsidiary', category: 'rhythm', label, detail: vRate > 100 ? 'Tachycardia from a non-sinus focus' : 'Subsidiary pacemaker drives the ventricles', because: 'The ventricles are activated from a focus below the atria, not by conducted sinus impulses.' });
+  }
+  // A sinus P that is not conducted because a premature ventricular beat just made the
+  // conduction system refractory is not AV block (it is the PVC's compensatory pause).
+  if (dropped.length && ectopicV.length > ecg.beats.length * 0.6 && vRate >= atrialRate * 0.95) {
+    f.push({ id: 'avdiss', category: 'conduction', label: 'P waves march through independently of the QRS', detail: 'AV dissociation (ventricular rate ≥ atrial rate)', because: 'A faster subsidiary focus captures the ventricles; sinus impulses find the conduction system refractory.' });
+  } else if (dropped.length) {
+    f.push({ id: 'avblock', category: 'conduction', label: 'Some P waves are not followed by QRS', detail: ectopicV.length > ecg.beats.length * 0.6 ? 'Complete AV block with escape rhythm' : 'Second-degree AV block', because: 'Impulses fail in the AV node (decremental – Mobitz I) or in the His–Purkinje system (all-or-none – Mobitz II / complete).' });
   }
 
   // ---------------- intervals
