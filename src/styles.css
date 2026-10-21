@@ -179,6 +179,12 @@ label.field { display: flex; flex-direction: column; gap: 3px; font-size: 0.85em
 .teach-hidden { filter: blur(6px); cursor: pointer; }
 .kbd { font-family: var(--mono); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; font-size: 0.8em; }
 
+.modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.option:disabled { cursor: default; color: inherit; }
+/* teach / presenter: wider content, narrower sidebars */
+:root[data-teach='true'] .cols-sidebar { grid-template-columns: 240px minmax(0, 1fr); }
+:root[data-teach='true'] .main { max-width: none; }
+
 /* ---------- equations */
 .eq { font-size: 1.15em; padding: 6px 0; overflow-x: auto; }
 

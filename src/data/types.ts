@@ -348,7 +348,7 @@ export interface CaseItem {
   title: string;
   level: Level;
   vignette: string;
-  media: { condition?: string; stage?: string; rhythm?: string; preset?: string; showHemo?: boolean };
+  media: { condition?: string; stage?: string; rhythm?: string; preset?: string; showHemo?: boolean; heartRate?: number; layout?: '3x4' | '15' | '18' };
   questions: CaseQuestion[];
   teachingPoints: string[];
   links: string[]; // ids of conditions/rhythms/presets
