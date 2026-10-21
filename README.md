@@ -33,7 +33,7 @@ models, fonts or audio files.
 
 ## 1. Run it on your own computer
 
-You need **Node.js** (version 20 or newer). Download the "LTS" installer from
+You need **Node.js** (version 20 or newer; 22 recommended). Download the "LTS" installer from
 <https://nodejs.org> and install it like any other program.
 
 1. Download this project (on GitHub: green **Code** button → **Download ZIP**, then unzip it), or
