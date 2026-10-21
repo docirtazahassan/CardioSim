@@ -3,7 +3,7 @@
  * Series colours come from the Okabe–Ito palette (colour-blind safe); identity is also given
  * by label and dash pattern, never colour alone.
  */
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 
 export interface Series {
   label: string;
@@ -70,7 +70,17 @@ function extent(series: Series[], key: 'x' | 'y'): [number, number] {
 }
 
 export default function Chart(props: ChartProps) {
-  const { series, height = 220, width = 520, crosshair = true, legend = true } = props;
+  const { series, height = 220, crosshair = true, legend = true } = props;
+  const wrapRef = useRef<HTMLElement>(null);
+  const [width, setWidth] = useState(props.width ?? 520);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((e) => setWidth(Math.max(240, Math.round(e[0].contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const clipId = `clip${useId().replace(/:/g, '')}`;
   const M = { l: 46, r: 64, t: props.title ? 22 : 10, b: props.xLabel ? 36 : 24 };
   const xd = props.xDomain ?? extent(series, 'x');
   const yd0 = props.yDomain ?? extent(series, 'y');
@@ -118,7 +128,7 @@ export default function Chart(props: ChartProps) {
 
   const visible = series.filter((s) => !s.ghost || s.label);
   return (
-    <figure style={{ margin: 0 }}>
+    <figure style={{ margin: 0 }} ref={wrapRef}>
       {legend && visible.length > 1 && (
         <div className="legend" aria-hidden="true" style={{ marginBottom: 2 }}>
           {visible.map((s) => (
@@ -126,7 +136,7 @@ export default function Chart(props: ChartProps) {
           ))}
         </div>
       )}
-      <svg ref={ref} className="chart" viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label={props.ariaLabel ?? props.title ?? 'chart'}
+      <svg ref={ref} className="chart" viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img" aria-label={props.ariaLabel ?? props.title ?? 'chart'}
         onPointerMove={onMove} onPointerLeave={() => setHover(null)} style={{ display: 'block', touchAction: 'pan-y' }}>
         {props.title && <text x={M.l} y={14} className="label">{props.title}</text>}
         {(props.bands ?? []).map((b, i) => (
@@ -151,8 +161,9 @@ export default function Chart(props: ChartProps) {
             {m.label && <text x={sx(m.x) + 2} y={M.t + 20 + (i % 3) * 10} fontSize={9}>{m.label}</text>}
           </g>
         ))}
+        <clipPath id={clipId}><rect x={M.l} y={M.t - 2} width={width - M.l - M.r} height={height - M.t - M.b + 4} /></clipPath>
         {series.map((s, i) => (
-          <path key={s.label + i} d={paths[i]} fill="none" stroke={s.color} strokeWidth={s.width ?? 2} strokeDasharray={s.dash} strokeLinejoin="round" strokeLinecap="round" opacity={s.ghost ? 0.55 : 1} />
+          <path key={s.label + i} clipPath={`url(#${clipId})`} d={paths[i]} fill="none" stroke={s.color} strokeWidth={s.width ?? 2} strokeDasharray={s.dash} strokeLinejoin="round" strokeLinecap="round" opacity={s.ghost ? 0.55 : 1} />
         ))}
         {series.filter((s) => s.endLabel).map((s) => {
           const n = s.x.length - 1;
