@@ -55,7 +55,7 @@ export function interpret(m: BeatMeasure, ecg: EcgOutput, hr: number): Finding[]
 
   // ---------------- intervals
   if (m.pr !== null) {
-    if (m.pr > 200) f.push({ id: 'pr-long', category: 'intervals', label: `PR ${Math.round(m.pr)} ms (> 200)`, detail: 'First-degree AV block (if constant)', because: 'Slowed conduction through the AV node (vagal tone, AV-nodal blocking drugs, ischemia, hyperkalemia).' });
+    if (m.pr > 200 && !f.some((x) => x.id === 'avblock')) f.push({ id: 'pr-long', category: 'intervals', label: `PR ${Math.round(m.pr)} ms (> 200)`, detail: 'First-degree AV block (if constant)', because: 'Slowed conduction through the AV node (vagal tone, AV-nodal blocking drugs, ischemia, hyperkalemia).' });
     else if (m.pr < 120) f.push({ id: 'pr-short', category: 'intervals', label: `PR ${Math.round(m.pr)} ms (< 120)`, detail: 'Pre-excitation or low atrial/junctional rhythm', because: 'An accessory pathway bypasses the AV-nodal delay, or the impulse starts close to the AV node.' });
   }
   if (m.qrs >= 120) {

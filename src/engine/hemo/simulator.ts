@@ -7,7 +7,7 @@ import { clamp } from '../math';
 import { Circulation, DT, type Instant, type MechEvent } from './model';
 import { rhythmById } from '../../data/rhythms';
 import { resolveEcgModel } from '../electrical/model';
-import { simulateRhythm } from '../rhythm/engine';
+import { simulateRhythm, type RhythmOutput } from '../rhythm/engine';
 
 export interface Murmurs {
   as: number; ar: number; mr: number; ms: number; tr: number; pr: number; ps: number;
@@ -66,6 +66,8 @@ export interface SimOptions {
   sampleEvery?: number;
   maxSamples?: number;
   seed?: number;
+  /** Drive contraction from a fixed rhythm-engine output (repeated cyclically) instead of the rhythm id. */
+  schedule?: Pick<RhythmOutput, 'atrial' | 'ventricular' | 'duration'>;
 }
 
 const zeroMurmurs = (): Murmurs => ({ as: 0, ar: 0, mr: 0, ms: 0, tr: 0, pr: 0, ps: 0, vsd: 0, pda: 0, hocm: 0, pulmFlow: 0, tvFlow: 0, mvFlow: 0 });
@@ -107,10 +109,10 @@ class BeatSource {
   private next = 0.3;
   private chunkEnd = 0;
   private chunkIndex = 0;
-  constructor(private rhythmId: string, private seed: number) {}
+  constructor(private rhythmId: string, private seed: number, private fixed?: SimOptions['schedule']) {}
 
   isSinus() {
-    return !this.rhythmId || this.rhythmId === 'sinus';
+    return !this.fixed && (!this.rhythmId || this.rhythmId === 'sinus');
   }
 
   /** Push events up to time tUntil (s) into the circulation. */
@@ -125,11 +127,18 @@ class BeatSource {
       return;
     }
     while (this.chunkEnd < tUntil) {
-      const r = rhythmById(this.rhythmId);
-      const R = resolveEcgModel({ ...(r?.ecg ?? {}), heartRate: hr });
-      const model = r ? { ...r.model } : {};
-      const chunk = 20000;
-      const out = simulateRhythm(model, R, { durationMs: chunk, seed: this.seed + this.chunkIndex });
+      let out: Pick<RhythmOutput, 'atrial' | 'ventricular' | 'duration'>;
+      let chunk: number;
+      if (this.fixed) {
+        out = this.fixed;
+        chunk = this.fixed.duration;
+      } else {
+        const r = rhythmById(this.rhythmId);
+        const R = resolveEcgModel({ ...(r?.ecg ?? {}), heartRate: hr });
+        const model = r ? { ...r.model } : {};
+        chunk = 20000;
+        out = simulateRhythm(model, R, { durationMs: chunk, seed: this.seed + this.chunkIndex });
+      }
       const off = this.chunkEnd;
       const evs: MechEvent[] = [];
       for (const a of out.atrial) if (a.mechanical) evs.push({ t: off + a.t / 1000, kind: 'atrial', strength: 1, rr: 0.8 });
@@ -149,7 +158,7 @@ export class HemoSimulator {
   beats: BeatSummary[] = [];
   samples: Sample[] = [];
   private src: BeatSource;
-  private opts: Required<SimOptions>;
+  private opts: Required<Omit<SimOptions, 'schedule'>>;
   private stepCount = 0;
   // baroreflex state
   baro = { hr: 1, svr: 1, ees: 1, ven: 1 };
@@ -160,7 +169,7 @@ export class HemoSimulator {
     this.base = params;
     this.eff = { ...params };
     this.circ = new Circulation(this.effective());
-    this.src = new BeatSource(params.rhythm, this.opts.seed);
+    this.src = new BeatSource(params.rhythm, this.opts.seed, opts.schedule);
     this.acc = new BeatAccumulator(0, 0);
   }
 
