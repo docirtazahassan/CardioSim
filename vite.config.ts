@@ -10,14 +10,6 @@ export default defineConfig({
   worker: { format: 'es' },
   build: {
     chunkSizeWarningLimit: 1500,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          three: ['three', '@react-three/fiber', '@react-three/drei'],
-          katex: ['katex'],
-        },
-      },
-    },
   },
   test: {
     globals: true,

@@ -29,9 +29,8 @@ src/
                  respiration, baroreflex), RK4 integrator, beat analysis, Starling/Guyton analytics
   workers/     web worker wrapping the hemodynamic engine
   store/       zustand stores (UI mode, student/clinician, scenario selections)
-  scenes/      Three.js procedural heart, coronary tree, conduction system, torso
-  ui/          panels, ECG paper, graphs, labs, cases, equations
-  audio/       Web Audio heart sounds and murmurs
+  ui/          panels, ECG paper, graphs, labs, cases, equations; ui/three = procedural 3D heart
+  engine/audio heart-sound and murmur synthesis (played with Web Audio)
 tests/         Vitest ground-truth tests 1–32 (+ engine unit tests)
 docs/          PLAN.md, CONTENT_NOTES.md
 ```
