@@ -55,7 +55,7 @@ export interface BeatSummary {
 export interface Sample {
   t: number;
   pLV: number; pAo: number; pLA: number; pRA: number; pRV: number; pPA: number; pPCW: number; pTh: number; pPeri: number; pJV: number;
-  vLV: number; vRV: number; vLA: number;
+  vLV: number; vRV: number; vLA: number; vRA: number;
   qMV: number; qAV: number; qTV: number; qPV: number; qVSD: number; qASD: number; qPDA: number;
   eLV: number; eLA: number;
   m: Murmurs; // instantaneous murmur intensities
